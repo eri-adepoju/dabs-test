@@ -1,0 +1,49 @@
+name: Deploy Changed Databricks Bundles
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main  # or your default branch
+
+jobs:
+  deploy-changed-bundles:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    env:
+      # Set the source branch name as an environment variable
+      prefix: ${{ github.event.pull_request.head.ref }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Get changed directories (Databricks bundles)
+        id: changed-dirs
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }} ${{ github.sha }})
+          DIRS=$(echo "$CHANGED_FILES" | awk -F/ '{print $1}' | sort | uniq)
+          DIRS_JSON=$(echo "$DIRS" | jq -R -s -c 'split("\n")[:-1]')
+          echo "dirs=$DIRS_JSON" >> $GITHUB_OUTPUT
+
+      - name: Deploy changed bundles
+        run: |
+          DIRS=$(echo '${{ steps.changed-dirs.outputs.dirs }}' | jq -r '.[]')
+          for dir in $DIRS; do
+            if [ -d "$dir" ] && [ -f "$dir/databricks.yml" ]; then
+              echo "Deploying bundle in $dir"
+              cd "$dir"
+              databricks bundle deploy -t dev"
+              cd ..
+            fi
+          done
+        env:
+          BUNDLE_VAR_prefix: ${{ env.prefix }}
+        shell: node {0}
