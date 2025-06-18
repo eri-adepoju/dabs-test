@@ -5,9 +5,6 @@ on:
     types: [closed]
     branches:
       - main  # or your default branch
-env:
-  DATABRICKS_CLIENT_ID: ${{secrets.DATABRICKS_CLIENT_ID}}
-  DATABRICKS_CLIENT_SECRET: ${{secrets.DATABRICKS_CLIENT_SECRET}}
 
 jobs:
   deploy-changed-bundles:
@@ -26,26 +23,25 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
-      - name: Get changed directories (Databricks bundles)
-        id: changed-dirs
+      
+      - name: Get changed bundles
+        id: changed
         run: |
           git fetch origin ${{ github.event.pull_request.base.ref }}
+          # Get list of changed files between base and head
           CHANGED_FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }} ${{ github.sha }})
-          DIRS=$(echo "$CHANGED_FILES" | awk -F/ '{print $1}' | sort | uniq)
-          DIRS_JSON=$(echo "$DIRS" | jq -R -s -c 'split("\n")[:-1]')
-          echo "dirs=$DIRS_JSON" >> $GITHUB_OUTPUT
+          # Extract top-level directories (bundles)
+          BUNDLES=$(echo "$CHANGED_FILES" | awk -F/ '{print $1}' | sort | uniq)
+          echo "bundles=$BUNDLES" >> $GITHUB_OUTPUT
 
       - name: Deploy changed bundles
+        if: steps.changed.outputs.bundles != ''
         run: |
-          DIRS=$(echo '${{ steps.changed-dirs.outputs.dirs }}' | jq -r '.[]')
-          for dir in $DIRS; do
-            if [ -d "$dir" ] && [ -f "$dir/databricks.yml" ]; then
-              echo "Deploying bundle in $dir"
-              cd "$dir"
-              databricks bundle deploy
-              cd ..
-            fi
+          for bundle in ${{ steps.changed.outputs.bundles }}; do
+            echo "Deploying bundle: $bundle"
+            databricks bundle deploy --target dev"
           done
         env:
-          BUNDLE_VAR_prefix: ${{ env.prefix }}
+          DATABRICKS_CLIENT_ID: ${{secrets.DATABRICKS_CLIENT_ID}}
+          DATABRICKS_CLIENT_SECRET: ${{secrets.DATABRICKS_CLIENT_SECRET}}
+          DATABRICKS_BUNDLE_ENV: dev
