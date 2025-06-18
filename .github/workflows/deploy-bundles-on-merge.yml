@@ -5,6 +5,9 @@ on:
     types: [closed]
     branches:
       - main  # or your default branch
+env:
+  DATABRICKS_CLIENT_ID: ${{secrets.DATABRICKS_CLIENT_ID}}
+  DATABRICKS_CLIENT_SECRET: ${{secrets.DATABRICKS_CLIENT_SECRET}}
 
 jobs:
   deploy-changed-bundles:
