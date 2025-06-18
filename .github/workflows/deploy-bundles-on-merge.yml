@@ -40,7 +40,7 @@ jobs:
             if [ -d "$dir" ] && [ -f "$dir/databricks.yml" ]; then
               echo "Deploying bundle in $dir"
               cd "$dir"
-              databricks bundle deploy -t dev"
+              databricks bundle deploy"
               cd ..
             fi
           done
