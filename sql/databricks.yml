@@ -33,6 +33,9 @@ targets:
       warehouse_id: 4b9b953939869799
       catalog: users
       schema: ${workspace.current_user.short_name}
+    permissions:
+      - user_name: eri.adepoju@databricks.com
+        level: CAN_MANAGE
 
   prod:
     mode: production

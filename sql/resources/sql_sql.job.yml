@@ -2,7 +2,7 @@
 resources:
   jobs:
     sql_sql_job:
-      name: sql_sql_job
+      name: ${var.prefix}_sql_job
 
       trigger:
         # Run this job every day, exactly one day from the last run; see https://docs.databricks.com/api/workspace/jobs/create#trigger
