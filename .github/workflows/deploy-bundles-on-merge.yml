@@ -55,7 +55,10 @@ jobs:
         id: changed-files
         run: |
           git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changed_files.txt
-          BUNDLES=$(awk -F/ '{print $1}' changed_files.txt | sort | uniq | jq -R -s -c 'split("\n")[:-1]')
+          # Filter out files under .github directory
+          grep -v '^\.github/' changed_files.txt > filtered_changed_files.txt
+          # Extract unique top-level directories (bundles) from filtered files
+          BUNDLES=$(awk -F/ '{print $1}' filtered_changed_files.txt | sort | uniq | jq -R -s -c 'split("\n")[:-1]')
           echo "bundles=$BUNDLES" >> $GITHUB_OUTPUT
           echo "Changed bundles: $BUNDLES"
 
