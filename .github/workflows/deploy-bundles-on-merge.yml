@@ -71,6 +71,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      
+      - name: Setup databricks CLI
+        uses: databricks/setup-cli@main
 
       - name: Deploy bundle
         run: |
