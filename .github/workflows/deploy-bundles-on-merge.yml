@@ -38,7 +38,6 @@ jobs:
               commit_sha: '${{ github.sha }}'
             });
             return prs.data[0]?.head?.ref || '';
-        result-encoding: string
 
       # Set final source branch name
       - name: Set final source branch name
