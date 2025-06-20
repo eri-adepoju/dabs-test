@@ -1,47 +1,87 @@
-name: Deploy Changed Databricks Bundles
+name: Deploy Changed Bundles
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
-      - main  # or your default branch
+      - main
 
 jobs:
-  deploy-changed-bundles:
-    if: github.event.pull_request.merged == true
+  prepare:
     runs-on: ubuntu-latest
-
-    env:
-      # Set the source branch name as an environment variable
-      prefix: ${{ github.event.pull_request.head.ref }}
-
+    outputs:
+      bundles: ${{ steps.changed-files.outputs.bundles }}
+      source_branch: ${{ steps.set-branch.outputs.FINAL_BRANCH }}
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-      
-      - name: Get changed bundles
-        id: changed
-        run: |
-          git fetch origin ${{ github.event.pull_request.base.ref }}
-          # Get list of changed files between base and head
-          CHANGED_FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }} ${{ github.sha }})
-          # Extract top-level directories (bundles)
-          BUNDLES=$(echo "$CHANGED_FILES" | awk -F/ '{print $1}' | sort | uniq)
-          echo "bundles=$BUNDLES" >> $GITHUB_OUTPUT
+          fetch-depth: 0
 
-      - name: Deploy changed bundles
-        if: steps.changed.outputs.bundles != ''
+      # Extract source branch from merge commit message
+      - name: Extract source branch from merge commit message
+        id: extract-branch
         run: |
-          for bundle in ${{ steps.changed.outputs.bundles }}; do
-            echo "Deploying bundle: $bundle"
-            databricks bundle deploy --target dev"
-          done
+          COMMIT_MSG=$(git log -1 --pretty=%B ${{ github.sha }})
+          SOURCE_BRANCH=$(echo "$COMMIT_MSG" | grep -oP 'from\s+\S+/\K\S+' || true)
+          echo "source_branch=$SOURCE_BRANCH" >> $GITHUB_OUTPUT
+
+      # Fallback to GitHub API if extraction failed
+      - name: Get source branch via GitHub API
+        if: steps.extract-branch.outputs.source_branch == ''
+        uses: actions/github-script@v6
+        id: find-pr
+        with:
+          script: |
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: '${{ github.sha }}'
+            });
+            return prs.data[0]?.head?.ref || '';
+        result-encoding: string
+
+      # Set final source branch name
+      - name: Set final source branch name
+        id: set-branch
+        run: |
+          if [ "${{ steps.extract-branch.outputs.source_branch }}" != "" ]; then
+            FINAL_BRANCH="${{ steps.extract-branch.outputs.source_branch }}"
+          else
+            FINAL_BRANCH="${{ steps.find-pr.outputs.result }}"
+          fi
+          echo "FINAL_BRANCH=$FINAL_BRANCH" >> $GITHUB_OUTPUT
+
+      # Get changed files and extract unique top-level directories (bundles)
+      - name: Get changed files
+        id: changed-files
+        run: |
+          git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changed_files.txt
+          BUNDLES=$(awk -F/ '{print $1}' changed_files.txt | sort | uniq | jq -R -s -c 'split("\n")[:-1]')
+          echo "bundles=$BUNDLES" >> $GITHUB_OUTPUT
+          echo "Changed bundles: $BUNDLES"
+
+  deploy:
+    needs: prepare
+    runs-on: ubuntu-latest
+    if: needs.prepare.outputs.bundles != '[]'
+    strategy:
+      matrix:
+        bundle: ${{ fromJson(needs.prepare.outputs.bundles) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Deploy bundle
+        run: |
+          echo "Deploying bundle: ${{ matrix.bundle }} from source branch: ${{ needs.prepare.outputs.source_branch }}"
+          databricks bundle deploy
+        working-directory: ${{ matrix.bundle }}
         env:
-          DATABRICKS_CLIENT_ID: ${{secrets.DATABRICKS_CLIENT_ID}}
-          DATABRICKS_CLIENT_SECRET: ${{secrets.DATABRICKS_CLIENT_SECRET}}
+          DATABRICKS_HOST:  ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN:  ${{ secrets.DATABRICKS_TOKEN }}
+          # DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          # DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
           DATABRICKS_BUNDLE_ENV: dev
+
