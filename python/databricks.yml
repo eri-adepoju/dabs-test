@@ -1,7 +1,7 @@
 # This is a Databricks asset bundle definition for python.
 # See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
 bundle:
-  name: python
+  name: ${var.prefix}python
   uuid: f580a146-5edd-42b8-ab66-a01a44217b8e
 
 variables:
