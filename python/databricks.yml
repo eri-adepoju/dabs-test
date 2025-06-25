@@ -22,6 +22,8 @@ targets:
     default: true
     workspace:
       host: https://dbc-23454ce2-8645.cloud.databricks.com
+    presets:
+      name_prefix: ${var.prefix}
 
   prod:
     mode: production

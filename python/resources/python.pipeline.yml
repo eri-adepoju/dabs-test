@@ -2,7 +2,7 @@
 resources:
   pipelines:
     python_pipeline:
-      name: ${var.prefix}python_pipeline
+      name: python_pipeline
       catalog: users
       schema: eri_adepoju
       libraries:
