@@ -1,12 +1,13 @@
 # This is a Databricks asset bundle definition for python.
 # See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
 bundle:
-  name: python
+  name: ${var.prefix}python
   uuid: f580a146-5edd-42b8-ab66-a01a44217b8e
 
 variables:
   prefix:
     description: ticket name to prevent overrides
+    default: ticket5
 
 include:
   - resources/*.yml
@@ -21,9 +22,7 @@ targets:
     mode: development
     default: true
     workspace:
-      host: https://dbc-23454ce2-8645.cloud.databricks.com
-    presets:
-      name_prefix: ${var.prefix}
+      host: https://e2-demo-field-eng.cloud.databricks.com
 
   prod:
     mode: production
