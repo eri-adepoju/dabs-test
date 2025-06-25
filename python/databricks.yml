@@ -21,7 +21,7 @@ targets:
     mode: development
     default: true
     workspace:
-      host: https://dbc-23454ce2-8645.cloud.databricks.com
+      host: https://e2-demo-field-eng.cloud.databricks.com
 
   prod:
     mode: production
